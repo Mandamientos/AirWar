@@ -1,69 +1,87 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
 
 public class graphController : MonoBehaviour
 {
-    public GameObject nodoPrefab; // Prefab para los nodos (aeropuertos/portaaviones)
-    public LineRenderer linePrefab; // Prefab para las líneas
+    public GameObject nodoPrefab;
+    public GameObject planePrefab;
+    public LineRenderer linePrefab;
     public List<Nodo> nodos = new List<Nodo>();
+
+    public TextMeshProUGUI scoreText;  // UI TextMeshProUGUI component
+    public AudioSource explodeSFX;
 
     private void Start()
     {
-        GenerarNodos(5); // Genera 5 nodos
+        GenerarNodos(5);
         GenerarConexiones();
         DibujarConexiones();
+
+        // Llamar a CreatePlane en nodos de tipo "aeropuerto" al inicio
+        foreach (var nodo in nodos)
+        {
+            if (nodo.type == "aeropuerto")
+            {
+                nodo.InvokeRepeating("CreatePlane", 0f, 30f);
+            }
+        }
     }
 
     private void GenerarNodos(int cantidad)
-{
-    Zona[] zonas = FindObjectsOfType<Zona>();
-
-    // Barajar el arreglo de zonas para seleccionarlas de manera aleatoria
-    zonas = ShuffleArray(zonas);
-
-    for (int i = 0; i < cantidad; i++)
     {
-        string tipoNodo = (i % 2 == 0) ? "aeropuerto" : "portaaviones";
-        bool nodoCreado = false;
+        Zona[] zonas = FindObjectsOfType<Zona>();
+        zonas = ShuffleArray(zonas);
 
-        foreach (Zona zona in zonas)
+        for (int i = 0; i < cantidad; i++)
         {
-            if ((tipoNodo == "aeropuerto" && zona.tipo == "tierra" || tipoNodo == "portaaviones" && zona.tipo == "agua") && !zona.ocupado)
-            {
-                Vector2 posicion = zona.GetComponent<Collider2D>().bounds.center;
-                GameObject nuevoNodo = Instantiate(nodoPrefab, posicion, Quaternion.identity);
-                Nodo nodo = nuevoNodo.GetComponent<Nodo>();
-                nodo.type = tipoNodo;
-                nodo.pos = posicion;
-                nodos.Add(nodo);
+            string tipoNodo = (i % 2 == 0) ? "aeropuerto" : "portaaviones";
+            bool nodoCreado = false;
 
-                zona.ocupado = true;
-                nodoCreado = true;
-                break;
+            foreach (Zona zona in zonas)
+            {
+                if ((tipoNodo == "aeropuerto" && zona.tipo == "tierra" || tipoNodo == "portaaviones" && zona.tipo == "agua") && !zona.ocupado)
+                {
+                    Vector2 posicion = zona.GetComponent<Collider2D>().bounds.center;
+                    GameObject nuevoNodo = Instantiate(nodoPrefab, posicion, Quaternion.identity);
+                    Nodo nodo = nuevoNodo.GetComponent<Nodo>();
+                    nodo.type = tipoNodo;
+                    nodo.pos = posicion;
+
+                    // Asignar el planePrefab desde graphController
+                    nodo.planePrefab = planePrefab; 
+
+                    // Crear el plane y asignar el TextMeshProUGUI dinámicamente
+                    GameObject newPlane = Instantiate(planePrefab, posicion, Quaternion.identity);
+                    plane planeScript = newPlane.GetComponent<plane>();
+                    planeScript.AssignScoreText(scoreText);  // Dynamically assign the score text
+
+                    nodos.Add(nodo);
+                    zona.ocupado = true;
+                    nodoCreado = true;
+                    break;
+                }
+            }
+
+            if (!nodoCreado)
+            {
+                Debug.LogWarning($"No hay zonas disponibles para crear un nodo de tipo {tipoNodo}");
             }
         }
-
-        if (!nodoCreado)
-        {
-            Debug.LogWarning($"No hay zonas disponibles para crear un nodo de tipo {tipoNodo}");
-        }
     }
-}
 
-// Método para barajar un arreglo de manera aleatoria
-private Zona[] ShuffleArray(Zona[] array)
-{
-    for (int i = array.Length - 1; i > 0; i--)
+    // Método para barajar un arreglo de manera aleatoria
+    private Zona[] ShuffleArray(Zona[] array)
     {
-        int randomIndex = Random.Range(0, i + 1);
-        Zona temp = array[i];
-        array[i] = array[randomIndex];
-        array[randomIndex] = temp;
+        for (int i = array.Length - 1; i > 0; i--)
+        {
+            int randomIndex = Random.Range(0, i + 1);
+            Zona temp = array[i];
+            array[i] = array[randomIndex];
+            array[randomIndex] = temp;
+        }
+        return array;
     }
-    return array;
-}
-
 
     private void GenerarConexiones()
     {
@@ -84,7 +102,7 @@ private Zona[] ShuffleArray(Zona[] array)
     private float CalcularPeso(float distancia, string tipoOrigen, string tipoDestino)
     {
         float peso = distancia;
-        if (tipoDestino == "portaaviones") peso += 5; // Coste adicional para portaaviones
+        if (tipoDestino == "portaaviones") peso += 5;
         return peso;
     }
 
@@ -94,15 +112,14 @@ private Zona[] ShuffleArray(Zona[] array)
         {
             foreach (var conexion in nodo.edges)
             {
-                Debug.Log($"Nodo: {nodo.pos} Destino: {conexion.destination.pos}");
                 LineRenderer linea = Instantiate(linePrefab, Vector2.zero, Quaternion.identity);
                 linea.SetPosition(0, nodo.pos);
                 linea.SetPosition(1, conexion.destination.pos);
                 linea.startColor = Color.gray;
                 linea.endColor = Color.gray;
-                linea.startWidth = 0.05f; // Asegúrate de que sea mayor que 0
-                linea.endWidth = 0.05f;   // Asegúrate de que sea mayor que 0
-                linea.sortingLayerName = "Foreground"; // Asegúrate de que esté en la capa correcta
+                linea.startWidth = 0.05f;
+                linea.endWidth = 0.05f;
+                linea.sortingLayerName = "Foreground";
             }
         }
     }

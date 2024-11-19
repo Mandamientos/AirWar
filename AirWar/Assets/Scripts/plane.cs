@@ -8,15 +8,21 @@ public class plane : MonoBehaviour
 {
     public Guid GUID;
     public int fuel;
-    public TextMeshProUGUI text;
+    public TextMeshProUGUI text;  // This will be assigned dynamically
     public GameObject explosion;
     public AudioSource explodeSFX;
     private Crew crew;
 
-    private void Start () {
+    // Método Start modificado
+    private void Start()
+    {
         this.GUID = Guid.NewGuid();
         this.fuel = 100;
         this.crew = new Crew();
+
+        // Usar las referencias asignadas
+        if (text != null) Debug.Log("Texto asignado correctamente.");
+        if (explodeSFX != null) Debug.Log("Efecto de sonido asignado correctamente.");
 
         Debug.Log("Nuevo avión de GUID: "+GUID);
 
@@ -25,26 +31,36 @@ public class plane : MonoBehaviour
         }
     }
 
-    private void OnTriggerEnter2D(Collider2D obj) {
-        if(obj.CompareTag("bullet")) {
+    private void OnTriggerEnter2D(Collider2D obj)
+    {
+        if (obj.CompareTag("bullet"))
+        {
             var currentScore = int.Parse(text.text.ToString());
             currentScore += 100;
             text.text = $"{currentScore}";
 
             Destroy(obj.gameObject);
-
             explode();
         }
     }
 
-    private void explode() {
+    private void explode()
+    {
         Destroy(gameObject);
         explodeSFX.Play();
 
         GameObject explosionObj = Instantiate(explosion, transform.position, transform.rotation);
         Destroy(explosionObj, 2f);
     }
+
+    // Method to assign the score text dynamically
+    public void AssignScoreText(TextMeshProUGUI scoreText)
+    {
+        this.text = scoreText;
+    }
 }
+
+
 
 public class Crew {
     public List<CrewMember> crewMembers;
