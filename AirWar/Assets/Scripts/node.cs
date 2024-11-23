@@ -1,9 +1,13 @@
+using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using TMPro;
 using UnityEngine;
 
 public class Nodo : MonoBehaviour
 {
-    public Vector2 pos;
+    public Vector3 pos;
     public string type;
     public List<Edge> edges = new List<Edge>();
 
@@ -14,38 +18,57 @@ public class Nodo : MonoBehaviour
 
     // Reference to the Plane prefab
     public GameObject planePrefab;  // Add this line to reference the plane prefab
+    public TextMeshPro nodeName;
+    public List<Nodo> nodes;
+    public bool theOne = false;
 
     private void Start()
     {
         pos = transform.position;
 
+        nodeName.text = new string(Enumerable.Range(0, 3)
+            .Select(_ => (char)UnityEngine.Random.Range('A', 'Z' + 1))
+            .ToArray());
+        
+        gameObject.name = nodeName.text;
+        
         // Inicializar atributos si el nodo es un aeropuerto
         if (type == "aeropuerto")
         {
-            fuelCapacity = Random.Range(500, 1001); // Rango aleatorio de capacidad de combustible
-            maxPlanes = 5; // Número máximo de aviones permitidos
-            InvokeRepeating("CreatePlane", 0f, 30f); // Llamar a CreatePlane cada 30 segundos
+            fuelCapacity = UnityEngine.Random.Range(500, 1001); // Rango aleatorio de capacidad de combustible
+            maxPlanes = 10; // Número máximo de aviones permitidos
         }
     }
 
-    // Método para crear un avión si el nodo es un aeropuerto
-    private void CreatePlane()
+    public IEnumerator CreatePlane(AudioSource explodeSFX, TextMeshProUGUI scoreText)
     {
-        if (type == "aeropuerto" && planes.Count < maxPlanes)
-        {
-            GameObject newPlane = Instantiate(planePrefab, pos, Quaternion.identity); // Usa tu prefab de avión aquí
-            plane planeScript = newPlane.GetComponent<plane>();
-            planeScript.fuel = fuelCapacity; // Inicializar el combustible del avión con la capacidad del nodo
-            planes.Add(planeScript);
-            Debug.Log($"Avión creado en {pos} con GUID: {planeScript.GUID} y combustible: {planeScript.fuel}");
+        while(true) {
+            if (planes.Count < maxPlanes)
+            {
+                GameObject newPlane = Instantiate(planePrefab, pos, Quaternion.identity); // Usa tu prefab de avión aquí
+                plane planeScript = newPlane.GetComponent<plane>();
+                planeScript.explodeSFX = explodeSFX;
+                planeScript.text = scoreText;
+                planeScript.currentNode = this;
+                planeScript.nodes = this.nodes;
+                planes.Add(planeScript);
+            }
+            else
+            {
+                Debug.LogWarning("No se pueden crear más aviones, se ha alcanzado el límite.");
+            }
+            yield return new WaitForSeconds(15);
         }
-        else if (type == "portaaviones")
-        {
-            Debug.LogWarning("No se pueden crear aviones en un nodo de tipo portaaviones.");
-        }
-        else
-        {
-            Debug.LogWarning("No se pueden crear más aviones, se ha alcanzado el límite.");
+
+    }
+
+    public int rationFuel (int fuelLeft) {
+        if ((100-fuelLeft)/2 > fuelCapacity) {
+            Debug.Log("No hay combustible suficiente");
+            return 0;
+        } else {
+            this.fuelCapacity = fuelCapacity - (100-fuelLeft)/2;
+            return (100-fuelLeft)/2;
         }
     }
 }
